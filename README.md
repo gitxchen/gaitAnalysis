@@ -17,4 +17,4 @@ La struttura delle cartelle previste per lo script è:
   *  2
   *  3
 
-nelle cartelle 0-3 basta scompattare gli zip corrispondenti quindi.
+nelle cartelle 0-3 basta scompattare gli zip delle __classi__ corrispondenti quindi.
