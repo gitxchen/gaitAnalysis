@@ -26,3 +26,5 @@ nelle cartelle 0-3 basta scompattare gli zip delle __classi__ corrispondenti qui
 
 ##__PROVE_FATTE__
 - [x] Test su i 200 fotogrammmi iniziali con rete keras e divisione non bilanciata 0.9, accuracy 0.55
+- [x] Test su  200 fotogrammmi da secondo footstep destro con rete keras e divisione bilanciata 0.9, accuracy 0.45
+
