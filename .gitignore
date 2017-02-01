@@ -1,3 +1,5 @@
 # IPython Notebook
 .ipynb_checkpoints
+data/
+processed/
 
