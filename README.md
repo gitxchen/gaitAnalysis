@@ -20,6 +20,6 @@ La struttura delle cartelle previste per lo script è:
   *  1
   *  2
   *  3
- * processed
+* processed
 
 nelle cartelle 0-3 basta scompattare gli zip delle __classi__ corrispondenti quindi.
