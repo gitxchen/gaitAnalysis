@@ -3,3 +3,4 @@
 data/
 processed/
 .idea/
+*.pyc
