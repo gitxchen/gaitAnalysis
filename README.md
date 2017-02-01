@@ -23,3 +23,6 @@ La struttura delle cartelle previste per lo script è:
 * processed
 
 nelle cartelle 0-3 basta scompattare gli zip delle __classi__ corrispondenti quindi.
+
+##__PROVE_FATTE__
+- [x] Test su i 200 fotogrammmi iniziali con rete keras e divisione non bilanciata 0.9, accuracy 0.55
