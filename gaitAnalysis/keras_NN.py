@@ -14,6 +14,7 @@ from keras.optimizers import Adam
 from keras.utils import np_utils
 from sklearn.model_selection import train_test_split
 from generator_reggio import generator_reggio
+import numpy
 #TEST MLP KERAS
 batch_size = 256
 nb_epoch = 20
@@ -22,8 +23,13 @@ nb_epoch = 20
 generator = generator_reggio("../processed/")
 generator.next()
 data,labels = generator.next()
+perm = numpy.random.permutation(len(data))
+data = data[perm]
+labels = labels[perm]
 
-data_train,data_test,labels_train,labels_test = train_test_split(data,labels,train_size=0.9)
+data_train,data_test,labels_train,labels_test = train_test_split(data,labels,train_size=0.9,stratify=numpy.argmax(labels,axis=1))
+
+
 
 data_train = data_train.reshape(len(data_train),-1).astype("float32")
 data_test = data_test.reshape(len(data_test),-1).astype("float32")
@@ -33,10 +39,16 @@ data_test = data_test.reshape(len(data_test),-1).astype("float32")
 model = Sequential()
 model.add(Dense(512, input_shape=(len(data_train[0]),)))
 model.add(Activation('sigmoid'))
-model.add(Dropout(0.2))
+model.add(Dropout(0.4))
+model.add(Dense(1024))
+model.add(Activation('sigmoid'))
+model.add(Dropout(0.4))
 model.add(Dense(512))
 model.add(Activation('sigmoid'))
 model.add(Dropout(0.2))
+model.add(Dense(256))
+model.add(Activation('sigmoid'))
+model.add(Dropout(0.4))
 model.add(Dense(4))
 model.add(Activation('softmax'))
 
