@@ -12,7 +12,7 @@ Permette di caricare i dati numpy in un programma. Contiene un generatore
 
 La struttura delle cartelle previste per lo script è:
 
-* cartella_base_dati
+* data
   *  0
     *    paziente_1
       *      .c3d
@@ -20,5 +20,6 @@ La struttura delle cartelle previste per lo script è:
   *  1
   *  2
   *  3
+ * processed
 
 nelle cartelle 0-3 basta scompattare gli zip delle __classi__ corrispondenti quindi.
