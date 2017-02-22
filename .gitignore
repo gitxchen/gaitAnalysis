@@ -1,6 +1,12 @@
+# Data folders
+data
+processed
+
+# PyCharm project
+.idea
+
 # IPython Notebook
 .ipynb_checkpoints
-data/
-processed/
-.idea/
+
+# Python compiled bytecode
 *.pyc
