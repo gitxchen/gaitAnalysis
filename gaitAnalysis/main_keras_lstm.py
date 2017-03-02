@@ -2,10 +2,15 @@ import os
 import numpy
 from sklearn.model_selection import train_test_split
 from keras.models import Sequential
-from keras.layers.core import Dense, Dropout, Activation
+from keras.layers.core import Dense, Dropout, Activation,Flatten
 from keras.layers.recurrent import LSTM
 from keras.optimizers import Adam
 import pandas
+from sklearn.preprocessing import MinMaxScaler
+import sys
+
+numpy.random.seed(7)
+sys.setrecursionlimit(40000)
 
 #carico dati
 BASE_FOLDER = "../processed/"
@@ -13,8 +18,8 @@ l = [f for f in os.listdir(BASE_FOLDER) if "c3d" in f]
 #ordino la lista
 l= sorted(l,cmp=lambda x,y: 1 if int(x.split(".")[0]) > int(y.split(".")[0]) else -1)
 #parametri
-SEQ_NUM = 35
-SEQ_LEN = 100
+SEQ_NUM = 50
+SEQ_LEN = 50
 NUM_PARAMS = 27
 NUM_COORDS = 1
 data = numpy.zeros((len(l)*SEQ_NUM,SEQ_LEN,NUM_PARAMS,NUM_COORDS))
@@ -34,6 +39,12 @@ data = data[0:index]
 labels = labels[0:index]
 
 
+data_raw = numpy.concatenate((data,labels),axis=1).reshape(-1,NUM_PARAMS*NUM_COORDS)*100
+data_raw = MinMaxScaler(feature_range=(-1,1)).fit_transform(data_raw)
+data_raw = data_raw.reshape(index,SEQ_LEN+1,NUM_PARAMS*NUM_COORDS)
+#ricostruisco
+data = data_raw[:,:SEQ_LEN]
+labels = data_raw[:,-1:]
 data_train = []
 data_test = []
 labels_train = []
@@ -91,11 +102,20 @@ labels_classes_test = pandas.get_dummies(labels_classes_test).values
 data_train = data_train.reshape(-1,SEQ_LEN,NUM_PARAMS*NUM_COORDS)
 data_test = data_test.reshape(-1,SEQ_LEN,NUM_PARAMS*NUM_COORDS)
 
+perm = numpy.random.permutation(len(data_train))
+data_train = data_train[perm]
+labels_train = labels_train[perm]
+labels_classes_train = labels_classes_train[perm]
+labels_patient_train = labels_patient_train[perm]
+
+
 model = Sequential()
-model.add(LSTM(48, input_shape=data_train.shape[1:]))
-model.add(Dense(128))
+model.add(LSTM(48, input_shape=data_train.shape[1:],init="uniform",inner_init="uniform"))
+
+#model.add(Flatten())
+model.add(Dense(256,init="uniform"))
 model.add(Activation('tanh'))
-model.add(Dropout(0.4))
+#model.add(Dropout(0.4))
 model.add(Dense(4))
 model.add(Activation('softmax'))
 
@@ -108,6 +128,6 @@ model.compile(loss='categorical_crossentropy',
 while True:
     epochs = int(raw_input("epochs"))
     history = model.fit(data_train, labels_classes_train,
-                        batch_size=100, nb_epoch=epochs,
+                        batch_size=100, nb_epoch=epochs,shuffle=False,
                         verbose=2, validation_data=(data_test, labels_classes_test))
     #score = model.evaluate(data_test, labels_test, verbose=0)
