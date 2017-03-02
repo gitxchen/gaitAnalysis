@@ -39,12 +39,6 @@ data = data[0:index]
 labels = labels[0:index]
 
 
-data_raw = numpy.concatenate((data,labels),axis=1).reshape(-1,NUM_PARAMS*NUM_COORDS)*100
-data_raw = MinMaxScaler(feature_range=(-1,1)).fit_transform(data_raw)
-data_raw = data_raw.reshape(index,SEQ_LEN+1,NUM_PARAMS*NUM_COORDS)
-#ricostruisco
-data = data_raw[:,:SEQ_LEN]
-labels = data_raw[:,-1:]
 data_train = []
 data_test = []
 labels_train = []
@@ -115,8 +109,10 @@ model.add(LSTM(48, input_shape=data_train.shape[1:],init="uniform",inner_init="u
 #model.add(Flatten())
 model.add(Dense(256,init="uniform"))
 model.add(Activation('tanh'))
-#model.add(Dropout(0.4))
+model.add(Dense(64,init="uniform"))
+model.add(Activation('sigmoid'))
 model.add(Dense(4))
+#model.add(Dropout(0.1))
 model.add(Activation('softmax'))
 
 model.summary()
