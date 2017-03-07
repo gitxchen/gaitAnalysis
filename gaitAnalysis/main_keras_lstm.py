@@ -9,18 +9,18 @@ import pandas
 from sklearn.preprocessing import MinMaxScaler
 import sys
 
-numpy.random.seed(7)
+numpy.random.seed(10)
 sys.setrecursionlimit(40000)
 
 #carico dati
-BASE_FOLDER = "../processed/"
+BASE_FOLDER = "../processed_1/"
 l = [f for f in os.listdir(BASE_FOLDER) if "c3d" in f]
 #ordino la lista
 l= sorted(l,cmp=lambda x,y: 1 if int(x.split(".")[0]) > int(y.split(".")[0]) else -1)
 #parametri
-SEQ_NUM = 50
-SEQ_LEN = 50
-NUM_PARAMS = 27
+SEQ_NUM = 9
+SEQ_LEN = 75
+NUM_PARAMS = 43
 NUM_COORDS = 1
 data = numpy.zeros((len(l)*SEQ_NUM,SEQ_LEN,NUM_PARAMS,NUM_COORDS))
 labels = numpy.zeros((len(l)*SEQ_NUM,1,NUM_PARAMS,NUM_COORDS))
@@ -104,13 +104,13 @@ labels_patient_train = labels_patient_train[perm]
 
 
 model = Sequential()
-model.add(LSTM(48, input_shape=data_train.shape[1:],init="uniform",inner_init="uniform"))
+model.add(LSTM(16, input_shape=data_train.shape[1:],init="uniform",inner_init="uniform",return_sequences=True))
 
-#model.add(Flatten())
-model.add(Dense(256,init="uniform"))
-model.add(Activation('tanh'))
-model.add(Dense(64,init="uniform"))
-model.add(Activation('sigmoid'))
+model.add(Flatten())
+#model.add(Dense(256,init="uniform"))
+#model.add(Activation('tanh'))
+#model.add(Dense(64,init="uniform"))
+#model.add(Activation('sigmoid'))
 model.add(Dense(4))
 #model.add(Dropout(0.1))
 model.add(Activation('softmax'))
