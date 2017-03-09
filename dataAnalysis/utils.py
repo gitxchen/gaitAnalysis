@@ -4,6 +4,10 @@ import os.path as path
 import numpy as np
 import c3d
 
+from scipy.interpolate import interp1d
+
+from exceptions import *
+
 CURR_FOLDER = path.dirname(__file__)
 
 # Folder containing .c3d files to be imported, subdivided by class
@@ -22,19 +26,6 @@ SUGGESTED_MARKERS = {"C7", "REP", "RUL", "RASIS", "RPSIS", "RCA", "RGT",
 SUGGESTED_ANGLES = {"RAAngle", "LAAngle", "RKAngle", "LKAngle", "RHAngle", "LHAngle",
                     "RPelvisAngle", "LPelvisAngle", "RTRKAngle", "LTRKAngle",
                     "LFootProgressionAngle", "RFootProgressionAngle"}
-
-
-# Custom exceptions
-class DataExtractError(Exception):
-    pass
-
-
-class NoEventsError(DataExtractError):
-    pass
-
-
-class MissingMarkersError(DataExtractError):
-    pass
 
 
 # WARNING: this doesn't make data completely anonymous, as some fields in the c3ds still contains the patients info
@@ -149,7 +140,7 @@ def get_foot_events(reader, offset=0):
         raise NoEventsError()
 
     # All events should be after the first frame
-    # Spoke too soon..
+    # Nevermind...
     # assert times.min() > 0
 
     positive = times > 0
@@ -166,22 +157,40 @@ def get_foot_events(reader, offset=0):
     return l_on, l_off, r_on, r_off
 
 
-def fix_bad_data(data):
+# Try to crop border with bad bits and interpolate small patches of bad bits in the middle
+def fix_bad_data(data, interp_kind='slinear'):
     bad_bits = data[:, :, 3]
-
-    # Crop border with bad bits
 
     # argmax used as firstIndexOf
     first_valid_idx = np.argmax(np.all(bad_bits != -1, axis=1))
+
     last_valid_idx = np.argmax(np.all(np.flip(bad_bits, axis=0) != -1, axis=1))
     last_valid_idx = data.shape[0] - last_valid_idx - 1
 
-    # TODO: interp1d
+    # Crop border with bad bits
+    data = data[first_valid_idx:last_valid_idx+1]
+    bad_bits = bad_bits[first_valid_idx:last_valid_idx+1]
+
+    bad_count = np.sum(np.any(bad_bits == -1, axis=1))
+    bad_ratio = bad_count / data.shape[0]
+
+    if bad_ratio > 0.1:
+        raise TooManyBadBitsError()
+
+    # Interpolate small patches of frames
+    # TODO: try 3d interpolation (RegularGridInterpolator)
+    for marker in np.arange(data.shape[1]):
+        bad_frames = np.where(bad_bits[:, marker] == -1)[0]
+        if len(bad_frames) > 0:
+            valid_frames = np.where(bad_bits[:, marker] != -1)[0]
+            f = interp1d(valid_frames, data[valid_frames, marker, :], axis=0, kind=interp_kind)
+            data[bad_frames, marker, :] = f(bad_frames)
 
     offset = first_valid_idx
-    return data[first_valid_idx:last_valid_idx+1], offset
+    return data, offset
 
 
+# Extracts rescaled 3d data of selected markers, along with bad bits
 def extract_data(reader, sugg_markers='markers'):
 
     # Load presets or use given suggested markers
@@ -220,6 +229,6 @@ def extract_data(reader, sugg_markers='markers'):
 
     # Rescale data back to meters using provided scale factor
     scale_factor = reader.header.scale_factor
-    data[:, :, 0:3] *= scale_factor
+    data[:, :, 0:3] *= abs(scale_factor)
     return data
 
