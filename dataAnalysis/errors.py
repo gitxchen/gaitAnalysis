@@ -12,3 +12,7 @@ class MissingMarkersError(DataExtractError):
 
 class TooManyBadBitsError(DataExtractError):
     pass
+
+
+class IncompleteAnalysisError(DataExtractError):
+    pass

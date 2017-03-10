@@ -217,6 +217,50 @@ def get_foot_events(reader, first_idx=0, last_idx=None):
     return l_on, l_off, r_on, r_off
 
 
+def get_analysis(reader):
+    analysis_group = reader.get('ANALYSIS')
+    names = [name.strip().replace('\xb0', '') for name in analysis_group.get('NAMES').bytes_array]
+    contexts = [context.strip() for context in analysis_group.get('CONTEXTS').string_array]
+    # units = [unit.strip() for unit in analysis_group.get('UNITS').string_array]
+    values = analysis_group.get('VALUES').float_array
+
+    rows = []
+
+    if len(names) % 24 != 0:
+        raise IncompleteAnalysisError()
+
+    for s in range(0, len(names), 24):
+        values_dict = {names[s:s+24][i] + " " + contexts[s:s+24][i]: values[s:s+24][i] for i in range(24)}
+        rows.append([
+            values_dict['Cadence Left'],
+            values_dict['Speed Left'],
+            values_dict['Stance Time Left'],
+            values_dict['Swing Time Left'],
+            values_dict['1 Double Support Left'],
+            values_dict['2 Double Support Left'],
+            values_dict['1 Single Support Left'],
+            values_dict['Opposite Foot Contact Left'],
+            values_dict['Stride Length Left'],
+            values_dict['Stride Length Normalised Left'],
+            values_dict['Cycle Time Left'],
+            values_dict['Speed Normalised Left'],
+
+            values_dict['Cadence Right'],
+            values_dict['Speed Right'],
+            values_dict['Stance Time Right'],
+            values_dict['Swing Time Right'],
+            values_dict['1 Double Support Right'],
+            values_dict['2 Double Support Right'],
+            values_dict['1 Single Support Right'],
+            values_dict['Opposite Foot Contact Right'],
+            values_dict['Stride Length Right'],
+            values_dict['Stride Length Normalised Right'],
+            values_dict['Cycle Time Right'],
+            values_dict['Speed Normalised Right'],
+        ])
+
+    return rows
+
 # Extracts rescaled 3d data of selected markers, along with bad bits
 def extract_data(reader, sugg_markers='markers', center_descriptor=None):
     # Load presets or use given suggested markers

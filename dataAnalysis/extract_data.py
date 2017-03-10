@@ -14,7 +14,6 @@ skipped = []
 # file_filter = '12_5.c3d'  # Bad in the middle
 file_filter = None
 
-
 patients_iterator = patients_data(file_filter=file_filter)
 for reader, class_folder, patient_folder, patient_file in patients_iterator:
 
@@ -35,7 +34,7 @@ for reader, class_folder, patient_folder, patient_file in patients_iterator:
         l_on, l_off, r_on, r_off = get_foot_events(reader, first_idx, last_idx)
 
         # TODO crop frames according to foot events
-        # TODO get data from ANALYSIS group
+        # TODO visualize steps event, and verify their correctness
 
         np.save(out_file, data)
 
@@ -47,4 +46,4 @@ for reader, class_folder, patient_folder, patient_file in patients_iterator:
 log_file = path.join(OUT_FOLDER, 'error_log.csv')
 
 skipped = pd.DataFrame(skipped, columns=['class', 'patient', 'file', 'error'])
-skipped.to_csv(log_file, index=False)
+skipped.to_csv(log_file, sep=';', index=False)
