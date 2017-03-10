@@ -6,7 +6,7 @@ import c3d
 
 from scipy.interpolate import interp1d
 
-from exceptions import *
+from errors import *
 
 CURR_FOLDER = path.dirname(__file__)
 
@@ -19,13 +19,13 @@ OUT_FOLDER = path.realpath(path.join(CURR_FOLDER, '..', "processed"))
 # Expected folders representing classes of diplegia
 CLASS_FOLDERS = ["0", "1", "2", "3"]
 
-SUGGESTED_MARKERS = {"C7", "REP", "RUL", "RASIS", "RPSIS", "RCA", "RGT",
-                     "RLE", "RFM", "RA", "LEP", "LUL", "LASIS",
-                     "LPSIS", "LCA", "LGT", "LLE", "LFM", "LA"}
+SUGGESTED_MARKERS = list({"C7", "REP", "RUL", "RASIS", "RPSIS", "RCA", "RGT",
+                          "RLE", "RFM", "RA", "LEP", "LUL", "LASIS",
+                          "LPSIS", "LCA", "LGT", "LLE", "LFM", "LA"})
 
-SUGGESTED_ANGLES = {"RAAngle", "LAAngle", "RKAngle", "LKAngle", "RHAngle", "LHAngle",
-                    "RPelvisAngle", "LPelvisAngle", "RTRKAngle", "LTRKAngle",
-                    "LFootProgressionAngle", "RFootProgressionAngle"}
+SUGGESTED_ANGLES = list({"RAAngle", "LAAngle", "RKAngle", "LKAngle", "RHAngle", "LHAngle",
+                         "RPelvisAngle", "LPelvisAngle", "RTRKAngle", "LTRKAngle",
+                         "LFootProgressionAngle", "RFootProgressionAngle"})
 
 
 # WARNING: this doesn't make data completely anonymous, as some fields in the c3ds still contains the patients info
@@ -123,62 +123,33 @@ def get_markers(reader):
     return [marker.strip().split(':')[-1] for marker in markers]
 
 
-# Gets steps data
-def get_foot_events(reader, offset=0):
-    frame_rate = reader.header.frame_rate
-    first_frame = reader.header.first_frame + offset
+# Find frame window that has no bad bits in the borders
+def get_valid_window(data):
+    bad_bits = data[:, :, 3]  # type: np.ndarray
 
-    event_group = reader.groups['EVENT']
-    contexts = [context.strip() for context in event_group.get('CONTEXTS').string_array]
-    labels = [label.strip() for label in event_group.get('LABELS').string_array]
-    times = np.round(event_group.get('TIMES').float_array * frame_rate).astype(int)
-
-    # Times array is parsed with right shape, but is read by columns instead of rows
-    times = times.reshape((times.shape[1], times.shape[0]))[:, 1] - first_frame
-
-    if len(times) == 0:
-        raise NoEventsError()
-
-    # All events should be after the first frame
-    # Nevermind...
-    # assert times.min() > 0
-
-    positive = times > 0
-
-    left = np.array([context == 'Left' for context in contexts])
-    strike = np.array([label == 'Foot Strike' for label in labels])
-
-    # Probably already sorted, insertion sort is best but numpy does not implement it
-    l_on = np.sort(times[left & strike & positive])
-    l_off = np.sort(times[left & ~strike & positive])
-    r_on = np.sort(times[~left & strike & positive])
-    r_off = np.sort(times[~left & ~strike & positive])
-
-    return l_on, l_off, r_on, r_off
-
-
-# Try to crop border with bad bits and interpolate small patches of bad bits in the middle
-def fix_bad_data(data, interp_kind='slinear'):
-    bad_bits = data[:, :, 3]
-
-    # argmax used as firstIndexOf
+    # argmax gives index of first True
     first_valid_idx = np.argmax(np.all(bad_bits != -1, axis=1))
 
     last_valid_idx = np.argmax(np.all(np.flip(bad_bits, axis=0) != -1, axis=1))
     last_valid_idx = data.shape[0] - last_valid_idx - 1
 
-    # Crop border with bad bits
-    data = data[first_valid_idx:last_valid_idx+1]
-    bad_bits = bad_bits[first_valid_idx:last_valid_idx+1]
+    return first_valid_idx, last_valid_idx
+
+
+# Interpolate small patches of bad bits
+def interp_missing_data(data, interp_kind='slinear', max_bad_perc=0.1):
+    bad_bits = data[:, :, 3]  # type: np.ndarray
 
     bad_count = np.sum(np.any(bad_bits == -1, axis=1))
     bad_ratio = bad_count / data.shape[0]
 
-    if bad_ratio > 0.1:
+    if bad_ratio > max_bad_perc:
         raise TooManyBadBitsError()
 
+    # TODO: max_patch threshold and exception if surpassed
+
     # Interpolate small patches of frames
-    # TODO: try 3d interpolation (RegularGridInterpolator)
+    # TODO: consider 3d interpolation (RegularGridInterpolator)
     for marker in np.arange(data.shape[1]):
         bad_frames = np.where(bad_bits[:, marker] == -1)[0]
         if len(bad_frames) > 0:
@@ -186,25 +157,84 @@ def fix_bad_data(data, interp_kind='slinear'):
             f = interp1d(valid_frames, data[valid_frames, marker, :], axis=0, kind=interp_kind)
             data[bad_frames, marker, :] = f(bad_frames)
 
-    offset = first_valid_idx
-    return data, offset
+    return data
+
+
+def get_main_axis(data, center_descriptor_idxs):
+    center_descriptor_data = data[:, center_descriptor_idxs, :]
+    center_data = np.mean(center_descriptor_data, axis=1)
+
+    range_x = np.max(center_data[:, 0]) - np.min(center_data[:, 0])
+    range_y = np.max(center_data[:, 1]) - np.min(center_data[:, 1])
+
+    return 0 if range_x > range_y else 1
+
+
+def swap_axes(data):
+    tmp = data[:, :, 0]
+    data[:, :, 0] = data[:, :, 1]
+    data[:, :, 1] = tmp
+    return data
+
+
+# Gets steps data
+def get_foot_events(reader, first_idx=0, last_idx=None):
+    frame_rate = reader.header.frame_rate
+    first_frame = reader.header.first_frame
+
+    if last_idx is None:
+        last_frame = reader.reader.last_frame
+        last_idx = last_frame - first_frame
+
+    event_group = reader.get('EVENT')
+    contexts = [context.strip() for context in event_group.get('CONTEXTS').string_array]
+    labels = [label.strip() for label in event_group.get('LABELS').string_array]
+    times = np.round(event_group.get('TIMES').float_array * frame_rate).astype(int)
+
+    # Times array is parsed with right shape, but is read by columns instead of rows
+    times = times.reshape((times.shape[1], times.shape[0]))[:, 1]
+
+    if len(times) == 0:
+        raise NoEventsError()
+
+    indices = times - first_frame
+
+    # Only consider events inside valid window
+    in_window = (indices >= first_idx) & (indices <= last_idx)
+
+    left = np.array([context == 'Left' for context in contexts])
+    strike = np.array([label == 'Foot Strike' for label in labels])
+
+    # Shift indices by window start
+    indices -= first_idx
+
+    # Probably already sorted, insertion sort is best but numpy does not implement it
+    l_on = np.sort(times[left & strike & in_window])
+    l_off = np.sort(times[left & ~strike & in_window])
+    r_on = np.sort(times[~left & strike & in_window])
+    r_off = np.sort(times[~left & ~strike & in_window])
+
+    return l_on, l_off, r_on, r_off
 
 
 # Extracts rescaled 3d data of selected markers, along with bad bits
-def extract_data(reader, sugg_markers='markers'):
-
+def extract_data(reader, sugg_markers='markers', center_descriptor=None):
     # Load presets or use given suggested markers
     if sugg_markers == 'markers':
-        sugg_markers = SUGGESTED_MARKERS    # 1089 / 1140
+        sugg_markers = SUGGESTED_MARKERS  # 1089 / 1140
     elif sugg_markers == 'angles':
-        sugg_markers = SUGGESTED_ANGLES     # 1110 / 1140
+        sugg_markers = SUGGESTED_ANGLES  # 1110 / 1140
     elif sugg_markers == 'both':
-        sugg_markers = SUGGESTED_MARKERS.union(SUGGESTED_ANGLES)    # 1088 / 1140
-    else:
-        sugg_markers = set(sugg_markers)
+        sugg_markers = list(set(SUGGESTED_MARKERS).union(SUGGESTED_ANGLES))  # 1088 / 1140
+
+    # Load preset or use given center descriptor
+    if center_descriptor == 'pelvis':
+        center_descriptor = ["RASIS", "RPSIS", "LASIS", "LPSIS"]
+    elif center_descriptor is not list:
+        center_descriptor = [center_descriptor]
 
     markers = get_markers(reader)
-    unavail_markers = sugg_markers.difference(markers)
+    unavail_markers = set(sugg_markers).difference(markers)
 
     if len(unavail_markers) > 0:
         raise MissingMarkersError()
@@ -227,8 +257,15 @@ def extract_data(reader, sugg_markers='markers'):
         idx = frame - first_frame
         data[idx] = points[sugg_markers_idxs, 0:4]
 
+    # If center descriptor available, use it to infer main axis, and swap axes if needed
+    if center_descriptor is not None:
+        descriptor_idxs = [sugg_markers.index(pelvis_marker) for pelvis_marker in center_descriptor]
+
+        main_axis = get_main_axis(data, descriptor_idxs)
+        if main_axis == 0:
+            data = swap_axes(data)
+
     # Rescale data back to meters using provided scale factor
     scale_factor = reader.header.scale_factor
     data[:, :, 0:3] *= abs(scale_factor)
     return data
-

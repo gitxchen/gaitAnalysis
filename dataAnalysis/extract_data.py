@@ -1,27 +1,50 @@
+import os
 import os.path as path
+import numpy as np
+import pandas as pd
 
-from utils import patients_data, extract_data, fix_bad_data, get_foot_events
-from exceptions import DataExtractError
+from utils import patients_data, extract_data, get_valid_window, interp_missing_data, get_foot_events
+from errors import DataExtractError
+
+from utils import OUT_FOLDER
 
 skipped = []
 
 # file_filter = '148_2.c3d'  # Bad frame border
-file_filter = '12_5.c3d'  # Bad in the middle
-# file_filter = None
+# file_filter = '12_5.c3d'  # Bad in the middle
+file_filter = None
+
 
 patients_iterator = patients_data(file_filter=file_filter)
 for reader, class_folder, patient_folder, patient_file in patients_iterator:
 
+    out_folder = path.join(OUT_FOLDER, class_folder, patient_folder)
+    out_file = path.join(out_folder, patient_file[:-4])
+
+    if not path.exists(out_folder):
+        os.makedirs(out_folder)
+
     try:
-        data = extract_data(reader)
-        data, offset = fix_bad_data(data)
+        # Get data for specified markers, and try to fix bad bits
+        data = extract_data(reader, sugg_markers='markers', center_descriptor='pelvis')
 
-        l_on, l_off, r_on, r_off = get_foot_events(reader, offset)
+        first_idx, last_idx = get_valid_window(data)
+        data = interp_missing_data(data[first_idx:last_idx+1], max_bad_perc=0.1)
 
-        # TODO flip y and x axis when using short side
+        # Get foot events for valid window
+        l_on, l_off, r_on, r_off = get_foot_events(reader, first_idx, last_idx)
+
         # TODO crop frames according to foot events
-        # TODO save in external file
+        # TODO get data from ANALYSIS group
+
+        np.save(out_file, data)
 
     except DataExtractError, e:
-        skipped.append([class_folder, patient_file, type(e).__name__])
+        exception_name = type(e).__name__
+        skipped.append([class_folder, patient_folder, patient_file, exception_name])
         continue
+
+log_file = path.join(OUT_FOLDER, 'error_log.csv')
+
+skipped = pd.DataFrame(skipped, columns=['class', 'patient', 'file', 'error'])
+skipped.to_csv(log_file, index=False)
