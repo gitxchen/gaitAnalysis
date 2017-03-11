@@ -17,10 +17,6 @@ file_filter = None
 
 patients_iterator = patients_data(file_filter=file_filter)
 for reader, class_folder, patient_folder, patient_file in patients_iterator:
-
-    out_folder = path.join(OUT_FOLDER, class_folder, patient_folder)
-    out_file = path.join(out_folder, patient_file[:-4])
-
     try:
         rows = get_analysis(reader)
 
