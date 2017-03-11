@@ -72,7 +72,7 @@ def patients_data(class_filter=None, patient_filter=None, file_filter=None, verb
             continue
 
         class_path = path.join(DATA_FOLDER, class_folder)
-        patient_folders = os.listdir(class_path)
+        patient_folders = [f for f in os.listdir(class_path) if path.isdir(f)]
         patient_folders.sort(key=lambda s: s.lower())
 
         if verbose >= 1:
@@ -130,7 +130,7 @@ def get_valid_window(data):
     # argmax gives index of first True
     first_valid_idx = np.argmax(np.all(bad_bits != -1, axis=1))
 
-    last_valid_idx = np.argmax(np.all(np.flip(bad_bits, axis=0) != -1, axis=1))
+    last_valid_idx = np.argmax(np.all(np.flipud(bad_bits) != -1, axis=1))
     last_valid_idx = data.shape[0] - last_valid_idx - 1
 
     return first_valid_idx, last_valid_idx
@@ -222,7 +222,7 @@ def get_step_sequences(data, events, skip_first=0, skip_last=0):
 
     assert skip_first >= 0 and skip_last >= 0
 
-    for i in range(skip_first, len(sequences)-skip_first-1):
+    for i in range(skip_first, len(events)-skip_last-1):
         start = events[i]
         end = events[i+1]
         sequences.append(data[start:end])

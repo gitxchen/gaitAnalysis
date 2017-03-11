@@ -12,6 +12,7 @@ from utils import OUT_FOLDER
 skipped = []
 
 # file_filter = '148_2.c3d'  # Bad frame border
+# file_filter = '80_5.c3d'  # Bad frame border
 # file_filter = '12_5.c3d'  # Bad in the middle
 file_filter = None
 
