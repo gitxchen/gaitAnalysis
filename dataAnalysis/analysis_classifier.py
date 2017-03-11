@@ -49,7 +49,7 @@ results = []
 
 for X_name, X in Xs.iteritems():
     for cf_name, cf in cfs.iteritems():
-        Xtrain, Xtest, Ytrain, Ytest = train_test_split(X, Y, test_size=0.3, stratify=Y)
+        Xtrain, Xtest, Ytrain, Ytest = train_test_split(X, Y, test_size=0.25, stratify=Y)
         cf.fit(Xtrain, Ytrain)
 
         acc_train = cf.score(Xtrain, Ytrain)

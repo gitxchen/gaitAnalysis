@@ -21,9 +21,6 @@ for reader, class_folder, patient_folder, patient_file in patients_iterator:
     out_folder = path.join(OUT_FOLDER, class_folder, patient_folder)
     out_file = path.join(out_folder, patient_file[:-4])
 
-    if not path.exists(out_folder):
-        os.makedirs(out_folder)
-
     try:
         rows = get_analysis(reader)
 

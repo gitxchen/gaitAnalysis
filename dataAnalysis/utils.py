@@ -72,7 +72,7 @@ def patients_data(class_filter=None, patient_filter=None, file_filter=None, verb
             continue
 
         class_path = path.join(DATA_FOLDER, class_folder)
-        patient_folders = [f for f in os.listdir(class_path) if path.isdir(f)]
+        patient_folders = [f for f in os.listdir(class_path) if path.isdir(path.join(class_path, f))]
         patient_folders.sort(key=lambda s: s.lower())
 
         if verbose >= 1:
