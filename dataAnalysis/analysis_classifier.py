@@ -73,7 +73,7 @@ df_results = pd.DataFrame(results, columns=[
     'dataset', 'classifier',
     'acc_train', 'acc_test',
     'cv_acc_mean', 'cv_acc_std'
-]).sort('cv_acc_mean', ascending=False)
+]).sort_values('cv_acc_mean', ascending=False)
 
 results_file = path.join(OUT_FOLDER, 'results.csv')
 df_results.to_csv(results_file, sep=';', index=False)

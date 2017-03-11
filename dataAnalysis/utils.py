@@ -209,12 +209,28 @@ def get_foot_events(reader, first_idx=0, last_idx=None):
     indices -= first_idx
 
     # Probably already sorted, insertion sort is best but numpy does not implement it
-    l_on = np.sort(times[left & strike & in_window])
-    l_off = np.sort(times[left & ~strike & in_window])
-    r_on = np.sort(times[~left & strike & in_window])
-    r_off = np.sort(times[~left & ~strike & in_window])
+    l_on = np.sort(indices[left & strike & in_window])
+    l_off = np.sort(indices[left & ~strike & in_window])
+    r_on = np.sort(indices[~left & strike & in_window])
+    r_off = np.sort(indices[~left & ~strike & in_window])
 
     return l_on, l_off, r_on, r_off
+
+
+def get_step_sequences(data, events, skip_first=0, skip_last=0):
+    sequences = []
+
+    assert skip_first >= 0 and skip_last >= 0
+
+    for i in range(skip_first, len(sequences)-skip_first-1):
+        start = events[i]
+        end = events[i+1]
+        sequences.append(data[start:end])
+
+    if len(sequences) == 0:
+        raise NotEnoughSteps()
+
+    return sequences
 
 
 def get_analysis(reader):
@@ -260,6 +276,7 @@ def get_analysis(reader):
         ])
 
     return rows
+
 
 # Extracts rescaled 3d data of selected markers, along with bad bits
 def extract_data(reader, sugg_markers='markers', center_descriptor=None):

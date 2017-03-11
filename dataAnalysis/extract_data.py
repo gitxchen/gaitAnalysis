@@ -3,7 +3,8 @@ import os.path as path
 import numpy as np
 import pandas as pd
 
-from utils import patients_data, extract_data, get_valid_window, interp_missing_data, get_foot_events
+from utils import patients_data, extract_data, get_valid_window,\
+    interp_missing_data, get_foot_events, get_step_sequences
 from errors import DataExtractError
 
 from utils import OUT_FOLDER
@@ -18,7 +19,7 @@ patients_iterator = patients_data(file_filter=file_filter)
 for reader, class_folder, patient_folder, patient_file in patients_iterator:
 
     out_folder = path.join(OUT_FOLDER, class_folder, patient_folder)
-    out_file = path.join(out_folder, patient_file[:-4])
+    out_file = path.join(out_folder, patient_file[:-4] + '_seq')
 
     if not path.exists(out_folder):
         os.makedirs(out_folder)
@@ -33,10 +34,15 @@ for reader, class_folder, patient_folder, patient_file in patients_iterator:
         # Get foot events for valid window
         l_on, l_off, r_on, r_off = get_foot_events(reader, first_idx, last_idx)
 
-        # TODO crop frames according to foot events
         # TODO visualize steps event, and verify their correctness
 
-        np.save(out_file, data)
+        # l_on seems best option, but only from given data distribution, might be fairer mixing l_on and r_on sequences
+        # skipping first sequence if any
+        sequences = get_step_sequences(data, l_on, skip_first=1, skip_last=0)
+        sequences_dict = {str(i): sequence for i, sequence in enumerate(sequences)}
+
+        np.savez(out_file, **sequences_dict)
+        # np.save(out_file, data)
 
     except DataExtractError, e:
         exception_name = type(e).__name__
@@ -47,3 +53,5 @@ log_file = path.join(OUT_FOLDER, 'error_log.csv')
 
 skipped = pd.DataFrame(skipped, columns=['class', 'patient', 'file', 'error'])
 skipped.to_csv(log_file, sep=';', index=False)
+
+
